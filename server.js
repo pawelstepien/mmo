@@ -17,37 +17,29 @@ class Player {
     }
     //x and y axises transition relative to current place
     move(map, xTransition, yTransition) {
-        if (map[x + xTransition][y + yTransition].isPassable) {
-            this.x = x + xTransition;
-            this.y = y + yTransition;
+        console.log('player move ', xTransition, yTransition, this.x, this.y)
+        const xSum = this.x + xTransition;
+        const ySum = this.y + yTransition
+
+        if (xSum >= 0 && ySum >= 0 &&
+            xSum < map.width && ySum < map.height &&
+            map.fields[xSum][ySum] !== null &&
+            map.fields[xSum][ySum].isPassable) {
+
+            map.fields[xSum][ySum].player = this;
+            map.fields[xSum][ySum].isPassable = false;
+            map.fields[this.x][this.y].player = null;
+            map.fields[this.x][this.y].isPassable = true;
+
+            this.x = xSum;
+            this.y = ySum;
+        } else {
+            console.log('rejected player movement', xSum, ySum)
         }
     }
     sendState(state) {
-        // console.log('senind state', state)
-        console.log('before stringify')
-        let cache = [];
-        // const stringifiedState = JSON.stringify(state, (key, value) => {
-        //     if (typeof value === 'object' && value !== null) {
-        //         if (cache.indexOf(value) !== -1) {
-        //             // Duplicate reference found, discard key
-        //             return;
-        //         }
-        //         // Store value in our collection
-        //         cache.push(value);
-        //     }
-        //     return value;
-        // });
         const stringifiedState = JSON.stringify(state);
-
-        cache = null; // Enable garbage collection
-        console.log('emiting stringified state', stringifiedState.length)
         this.socket.emit('state update', stringifiedState);
-    }
-    removePlayer() {
-        console.log('remove player', map[x][y].player.id)
-        if (map[x][y].player === this) {
-            map[x][y].player = null;
-        }
     }
 }
 
@@ -81,69 +73,74 @@ class Map {
         for (let x = 0; x + xFrom <= xTo; x++) {
             data.push([]);
             for (let y = 0; y + yFrom <= yTo; y++) {
-                // console.log(x+xFrom-1, y+yFrom-1)
                 data[x][y] = null;
-                if (!(x + xFrom < 0 || y + yFrom < 0 || x + xTo > this.width || y + yTo > this.height)) {
+                if (!(x + xFrom < 0 || y + yFrom < 0 || x >= this.width || y >= this.height) &&
+                    typeof this.fields[x + xFrom] !== 'undefined' && typeof this.fields[x + xFrom][y + yFrom] !== 'undefined') {
+
                     const objectToPush = {};
-                    objectToPush.player = (this.fields[x + xFrom][y + yFrom].player === null ? null : {x : this.fields[x + xFrom][y + yFrom].player.x, y : this.fields[x + xFrom][y + yFrom].player.y});
-                    objectToPush.isPassable = this.fields[x + xFrom][y + yFrom].isPassable;
+                    objectToPush.player = (this.fields[x + xFrom][y + yFrom].player === null ? null : { x: this.fields[x + xFrom][y + yFrom].player.x, y: this.fields[x + xFrom][y + yFrom].player.y });
+                    objectToPush.isPassable = this.fields[x + xFrom][y + yFrom].isPassable || false;
                     data[x][y] = objectToPush;
-                    console.log('lala', objectToPush)
+                } else {
+                    
                 }
             }
         }
-        console.log('data')
         return data;
     }
-
 }
 
 class Game {
     constructor() {
         this.players = {};
-        this.map = new Map(41, 41);
+        this.map = new Map(64, 64);
         this.isServerOnline = false;
     }
     addPlayer(socket) {
         let x, y;
         do {
-            x = Math.floor(Math.random() * 6 /*this.map.width */);
-            y = Math.floor(Math.random() * 6 /*this.map.height */);
+            x = Math.floor(Math.random() * this.map.width);
+            y = Math.floor(Math.random() * this.map.height);
         } while (!this.map.fields[x][y].isPassable || this.map.fields[x][y].player !== null);
         const player = new Player(socket, x, y);
         this.map.fields[x][y].player = player;
         this.map.fields[x][y].isPassable = false;
         return player;
     }
+    removePlayer(player) {
+        const x = player.x;
+        const y = player.y;
+        this.map.fields[x][y].player = null;
+        this.map.fields[x][y].isPassable = true;
+        delete this.players[player.id];
+    }
     sendStateToPlayers() {
         const playersKeys = Object.keys(this.players || {}); //?
-        console.log('sending state to players')
         if (playersKeys.length === 0) {
             return;
         }
         playersKeys.forEach(key => {
             const player = this.players[key];
-            const state = this.map.getData(player.x - 5, player.y - 5, player.x + 5, player.y + 5);
+            const state = this.map.getData(player.x - 8, player.y - 8, player.x + 8, player.y + 8);
             player.sendState(state);
         });
     };
     start() {
         this.isServerOnline = true;
-        setInterval(this.sendStateToPlayers.bind(this), 1000);
+        setInterval(this.sendStateToPlayers.bind(this), 250);
 
         io.on('connection', socket => {
-            
             this.players[socket.id] = this.addPlayer(socket);
-            console.log('player connected', this.players[socket.id].x, this.players[socket.id].y)
 
-            io.on('disconnect', socket => {
-                console.log('disconnect event', socket)
+            socket.on('disconnect', () => {
+                this.removePlayer(this.players[socket.id]);
                 delete this.players[socket.id];
-                this.players[socket.id].removePlayer();
+            });
+
+            socket.on('move player', data => {
+                this.players[socket.id].move(this.map, data.xTransition, data.yTransition);
             });
         });
-
-
     }
 };
 
