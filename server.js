@@ -1,9 +1,10 @@
 const express = require('express');
+const fs = require('fs');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
-app.use(express.static('./'))
+app.use(express.static('./client'))
 
 http.listen(1337, () => {
     console.log('listening on *:1337');
@@ -14,27 +15,30 @@ class Player {
         this.socket = socket;
         this.x = x;
         this.y = y;
+        this.lastMoveTime = 0;
     }
-    //x and y axises transition relative to current place
-    move(map, xTransition, yTransition) {
-        console.log('player move ', xTransition, yTransition, this.x, this.y)
-        const xSum = this.x + xTransition;
-        const ySum = this.y + yTransition
+    //x and y axises translation relative to current place
+    move(map, xTranslation, yTranslation) {
+        console.log('player move ', xTranslation, yTranslation, this.x, this.y)
+        const currentTime = new Date();
+        const xSum = this.x + xTranslation;
+        const ySum = this.y + yTranslation;
 
         if (xSum >= 0 && ySum >= 0 &&
             xSum < map.width && ySum < map.height &&
             map.fields[xSum][ySum] !== null &&
-            map.fields[xSum][ySum].isPassable) {
+            map.fields[xSum][ySum].isPassable && 
+            this.lastMoveTime - currentTime < -200) {
 
             map.fields[xSum][ySum].player = this;
             map.fields[xSum][ySum].isPassable = false;
             map.fields[this.x][this.y].player = null;
             map.fields[this.x][this.y].isPassable = true;
-
+            this.lastMoveTime = currentTime;
             this.x = xSum;
             this.y = ySum;
         } else {
-            console.log('rejected player movement', xSum, ySum)
+            console.log('rejected player movement', xSum, ySum, this.lastMoveTime - currentTime, this.lastMoveTime, currentTime)
         }
     }
     sendState(state) {
@@ -95,6 +99,19 @@ class Game {
         this.players = {};
         this.map = new Map(32, 32);
         this.isServerOnline = false;
+        this.accountsData = JSON.parse(fs.readFileSync('players.json'));
+    }
+    getAccountData(login, password) {
+        const account = this.accountsData.find(account => account.login === login);
+        if (!account) {
+            console.log('login not found', login)
+            return null;
+        }
+        if (account.password !== password) {
+            console.log('wrong password', login, password);
+            return null;
+        }
+        return account;
     }
     addPlayer(socket) {
         let x, y;
@@ -130,17 +147,28 @@ class Game {
         setInterval(this.sendStateToPlayers.bind(this), 250);
 
         io.on('connection', socket => {
-            this.players[socket.id] = this.addPlayer(socket);
-            socket.emit('player id', socket.id)
+
+            socket.on('login', credentials => {
+                const accountData = this.getAccountData(credentials.login, credentials.password);
+                if (accountData) {
+                    this.players[socket.id] = this.addPlayer(socket);
+                    socket.emit('player id', socket.id)
+                } else {
+                    socket.emit('credential rejected')
+                }
+            });            
 
             socket.on('disconnect', () => {
-                this.removePlayer(this.players[socket.id]);
-                delete this.players[socket.id];
+                if (this.players[socket.id]) {
+                    this.removePlayer(this.players[socket.id]);
+                    delete this.players[socket.id];
+                }
             });
 
             socket.on('move player', data => {
-                this.players[socket.id].move(this.map, data.xTransition, data.yTransition);
+                this.players[socket.id].move(this.map, data.xTranslation, data.yTranslation);
             });
+
         });
     }
 };

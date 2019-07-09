@@ -1,4 +1,17 @@
 const socket = io();
+
+const sendLoginFormData = () => {
+    const login = document.getElementById('login-input').value;
+    const password = document.getElementById('password-input').value;
+    socket.emit('login', {login: login, password: password});
+};
+const form = document.getElementById('login-form');
+form.addEventListener('submit', event => {
+    console.log('form submit')
+    event.preventDefault();
+    sendLoginFormData();
+});
+
 class Game {
     constructor(canvas) {
         this.ctx = canvas.getContext('2d');
@@ -13,13 +26,15 @@ class Game {
             console.log('player id', playerId)
             this.playerId = playerId;
         });
+        socket.on('credential rejected', () => {
+            console.log('credential rejected')
+        });
         socket.on('state update', state => {
             this.drawState(JSON.parse(state));
         });
         this.initArrows();
     }
     drawState(state) {
-
         this.state = state;
         this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
         for (let x = 0; x < this.state.length; x++) {
@@ -60,8 +75,8 @@ class Game {
         this.ctx.fillRect(x*this.tileSide, y*this.tileSide, this.tileSide, this.tileSide);
         this.ctx.fillStyle = previousFillStyle;
     }
-    movePlayer(xTransition, yTransition) {
-        socket.emit('move player', { xTransition: xTransition, yTransition: yTransition })
+    movePlayer(xTranslation, yTranslation) {
+        socket.emit('move player', { xTranslation: xTranslation, yTranslation: yTranslation })
     }
     initArrows() {
         window.addEventListener('keydown', event => {
