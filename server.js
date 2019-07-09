@@ -78,7 +78,7 @@ class Map {
                     typeof this.fields[x + xFrom] !== 'undefined' && typeof this.fields[x + xFrom][y + yFrom] !== 'undefined') {
 
                     const objectToPush = {};
-                    objectToPush.player = (this.fields[x + xFrom][y + yFrom].player === null ? null : { x: this.fields[x + xFrom][y + yFrom].player.x, y: this.fields[x + xFrom][y + yFrom].player.y });
+                    objectToPush.player = (this.fields[x + xFrom][y + yFrom].player === null ? null : { x: this.fields[x + xFrom][y + yFrom].player.x, y: this.fields[x + xFrom][y + yFrom].player.y, id: this.fields[x + xFrom][y + yFrom].player.socket.id});
                     objectToPush.isPassable = this.fields[x + xFrom][y + yFrom].isPassable || false;
                     data[x][y] = objectToPush;
                 } else {
@@ -93,7 +93,7 @@ class Map {
 class Game {
     constructor() {
         this.players = {};
-        this.map = new Map(64, 64);
+        this.map = new Map(32, 32);
         this.isServerOnline = false;
     }
     addPlayer(socket) {
@@ -131,6 +131,7 @@ class Game {
 
         io.on('connection', socket => {
             this.players[socket.id] = this.addPlayer(socket);
+            socket.emit('player id', socket.id)
 
             socket.on('disconnect', () => {
                 this.removePlayer(this.players[socket.id]);

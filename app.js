@@ -6,8 +6,13 @@ class Game {
         this.tileSide = 40;
         this.canvasWidth = canvas.width;
         this.canvasHeight = canvas.height;
+        this.playerId = '';
     }
     start() {
+        socket.on('player id', playerId => {
+            console.log('player id', playerId)
+            this.playerId = playerId;
+        });
         socket.on('state update', state => {
             this.drawState(JSON.parse(state));
         });
@@ -30,16 +35,23 @@ class Game {
 
                 this.colorField(x, y, 'rgba(0, 0, 255, 0.25)');
                 const player = this.state[x][y].player;
-                if (player !== null) {
+                if (player !== null && player.id !== this.playerId) {
                     this.drawPlayer(x, y);
                 }
             }
         }
+        this.drawClientPlayer();
     }
     drawPlayer(x, y) {
         const halfTileSide = this.tileSide / 2;
         this.ctx.beginPath();
         this.ctx.arc((x+1)*this.tileSide - halfTileSide, (y+1)*this.tileSide - halfTileSide, halfTileSide, 0, 2 * Math.PI);
+        this.ctx.stroke();
+    }
+    drawClientPlayer(x, y) {
+        const halfTileSide = this.tileSide / 2;
+        this.ctx.beginPath();
+        this.ctx.arc(this.canvasWidth/2, this.canvasHeight/2, halfTileSide, 0, 2 * Math.PI);
         this.ctx.stroke();
     }
     colorField(x, y, color) {
