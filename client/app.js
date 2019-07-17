@@ -12,16 +12,48 @@ form.addEventListener('submit', event => {
     sendLoginFormData();
 });
 
+class Graphics {
+    constructor() {
+        this.assets = {images: {}, spritesheets: {}};
+        this.allImagesAreLoaded = true;
+        this.imagesLoaded = 0;
+    }
+    loadImage(source, name) {
+        const image = new Image();
+
+        image.addEventListener('load', () => {
+            this.assets.images[name] = image;
+            this.imagesLoaded++;
+            if (this.imagesLoaded === Object.keys(this.assets.images).length) {
+                this.allImagesAreLoaded = true;
+            }
+        });
+
+        this.allAssetsLoaded = false;
+        image.src = source;
+    }
+}
+
 class Game {
     constructor(canvas) {
         this.ctx = canvas.getContext('2d');
         this.state = null;
-        this.tileSide = 40;
+        this.tileSide = 32;
+        canvas.width = 32 * 17;
+        canvas.height = 32 * 17;
         this.canvasWidth = canvas.width;
         this.canvasHeight = canvas.height;
         this.playerId = '';
+        this.graphics = new Graphics;
+    }
+    loadAssets() {
+        this.graphics.loadImage('./assets/sprites/tiles/grass.png', 'grass');
+        this.graphics.loadImage('./assets/sprites/tiles/lava.png', 'lava');
+        this.graphics.loadImage('./assets/sprites/characters/mage.png', 'mage');
     }
     start() {
+        this.loadAssets();
+        //login
         socket.on('player id', playerId => {
             console.log('player id', playerId)
             this.playerId = playerId;
@@ -41,14 +73,14 @@ class Game {
             for (let y = 0; y < this.state[x].length; y++) {
                 if (!this.state[x][y]) {
                     if (typeof this.state[x][y] === 'undefined') {
-                        this.colorField(x, y, 'rgba(255, 0, 0, .25)');
+                        this.drawImage('lava', x, y);
                     } else if (this.state[x][y] === null) {
-                        this.colorField(x, y, 'rgba(0, 0, 0, .25)');
+                        this.drawImage('lava', x, y);
                     }
                     continue; 
                 }
 
-                this.colorField(x, y, 'rgba(0, 0, 255, 0.25)');
+                this.drawImage('grass', x, y);
                 const player = this.state[x][y].player;
                 if (player !== null && player.id !== this.playerId) {
                     this.drawPlayer(x, y);
@@ -60,13 +92,13 @@ class Game {
     drawPlayer(x, y) {
         const halfTileSide = this.tileSide / 2;
         this.ctx.beginPath();
-        this.ctx.arc((x+1)*this.tileSide - halfTileSide, (y+1)*this.tileSide - halfTileSide, halfTileSide, 0, 2 * Math.PI);
+        this.ctx.drawImage(this.graphics.assets.images.mage, x*this.tileSide, y*this.tileSide);
         this.ctx.stroke();
     }
-    drawClientPlayer(x, y) {
+    drawClientPlayer() {
         const halfTileSide = this.tileSide / 2;
         this.ctx.beginPath();
-        this.ctx.arc(this.canvasWidth/2, this.canvasHeight/2, halfTileSide, 0, 2 * Math.PI);
+        this.ctx.drawImage(this.graphics.assets.images.mage, this.canvasWidth/2 - halfTileSide, this.canvasHeight/2 - halfTileSide);
         this.ctx.stroke();
     }
     colorField(x, y, color) {
@@ -74,6 +106,9 @@ class Game {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x*this.tileSide, y*this.tileSide, this.tileSide, this.tileSide);
         this.ctx.fillStyle = previousFillStyle;
+    }
+    drawImage(name, x, y) {
+        this.ctx.drawImage(this.graphics.assets.images[name], x*this.tileSide, y*this.tileSide);
     }
     movePlayer(xTranslation, yTranslation) {
         socket.emit('move player', { xTranslation: xTranslation, yTranslation: yTranslation })
