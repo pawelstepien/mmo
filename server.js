@@ -11,11 +11,12 @@ http.listen(1337, () => {
 });
 
 class Player {
-    constructor(socket, x, y) {
+    constructor(socket, accountData, x, y) {
         this.socket = socket;
         this.x = x;
         this.y = y;
         this.lastMoveTime = 0;
+        this.name = accountData.name;
     }
     //x and y axises translation relative to current place
     move(map, xTranslation, yTranslation) {
@@ -48,9 +49,19 @@ class Player {
 }
 
 class MapField {
-    constructor() {
+    constructor(type) {
+        this.type = type;
         this.player = null;
         this.isPassable = true;
+        this.messages = [];
+    }
+    addMessage(player, message) {
+        if (this.messages.length > 5) { console.log('ten if'); return; }
+        console.log('elsee')
+        this.messages.push({player: player, message: message});
+        setTimeout(() => {
+            this.messages.shift();
+        }, 3000 + message.length*25);
     }
 }
 
@@ -63,7 +74,7 @@ class Map {
         for (let x = 0; x < width; x++) {
             this.fields.push([]);
             for (let y = 0; y < height; y++) {
-                this.fields[x].push(new MapField());
+                this.fields[x].push(new MapField('grass_' + (Math.floor(Math.random() * 7) + 1)));
             }
         }
     }
@@ -82,11 +93,12 @@ class Map {
                     typeof this.fields[x + xFrom] !== 'undefined' && typeof this.fields[x + xFrom][y + yFrom] !== 'undefined') {
 
                     const objectToPush = {};
-                    objectToPush.player = (this.fields[x + xFrom][y + yFrom].player === null ? null : { x: this.fields[x + xFrom][y + yFrom].player.x, y: this.fields[x + xFrom][y + yFrom].player.y, id: this.fields[x + xFrom][y + yFrom].player.socket.id});
+                    objectToPush.player = (this.fields[x + xFrom][y + yFrom].player === null ? null : { x: this.fields[x + xFrom][y + yFrom].player.x, y: this.fields[x + xFrom][y + yFrom].player.y, name: this.fields[x + xFrom][y + yFrom].player.name});
                     objectToPush.isPassable = this.fields[x + xFrom][y + yFrom].isPassable || false;
+                    objectToPush.type = this.fields[x + xFrom][y + yFrom].type || null;
+                    objectToPush.messages = this.fields[x + xFrom][y + yFrom].messages || null;
                     data[x][y] = objectToPush;
-                } else {
-                    
+
                 }
             }
         }
@@ -113,13 +125,13 @@ class Game {
         }
         return account;
     }
-    addPlayer(socket) {
+    addPlayer(socket, accountData) {
         let x, y;
         do {
             x = Math.floor(Math.random() * this.map.width);
             y = Math.floor(Math.random() * this.map.height);
         } while (!this.map.fields[x][y].isPassable || this.map.fields[x][y].player !== null);
-        const player = new Player(socket, x, y);
+        const player = new Player(socket, accountData, x, y);
         this.map.fields[x][y].player = player;
         this.map.fields[x][y].isPassable = false;
         return player;
@@ -151,8 +163,8 @@ class Game {
             socket.on('login', credentials => {
                 const accountData = this.getAccountData(credentials.login, credentials.password);
                 if (accountData) {
-                    this.players[socket.id] = this.addPlayer(socket);
-                    socket.emit('player id', socket.id)
+                    this.players[socket.id] = this.addPlayer(socket, accountData);
+                    socket.emit('login', accountData)
                 } else {
                     socket.emit('credential rejected')
                 }
@@ -169,6 +181,12 @@ class Game {
                 this.players[socket.id].move(this.map, data.xTranslation, data.yTranslation);
             });
 
+            socket.on('message', message => {
+                const player = this.players[socket.id];
+                console.log('received message', socket.id, message)
+                this.map.fields[player.x][player.y].addMessage(player.name, message)
+            });
+            
         });
     }
 };
