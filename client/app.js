@@ -1,8 +1,9 @@
-const socket = io();
+let socket = io();
 
 const sendLoginFormData = () => {
     const login = document.getElementById('login-input').value;
     const password = document.getElementById('password-input').value;
+    console.log(login, password)
     socket.emit('login', {login: login, password: password});
 };
 const form = document.getElementById('login-form');
@@ -48,7 +49,7 @@ class Game {
     constructor(canvas) {
         this.ctx = canvas.getContext('2d');
         this.state = null;
-        this.playerData = null;
+        this.accountData = null;
         this.tileSide = 32;
         canvas.width = 32 * 17;
         canvas.height = 32 * 17;
@@ -74,6 +75,7 @@ class Game {
         });
         socket.on('disconnect', () => {
             this.updateUiForLoggedOutPlayer();
+            console.log('disconnect')
         });
         socket.on('credential rejected', () => {
             console.log('credential rejected')
@@ -82,6 +84,7 @@ class Game {
             this.drawState(JSON.parse(state));
         });
         this.initArrows();
+        this.initAttackOnClick();
     }
     updateUiForLoggedInPlayer() {
         const loginForm = document.getElementById('login-form');
@@ -123,6 +126,7 @@ class Game {
                 
                 if (player) {
                     this.drawPlayer(x, y, player.sprite);
+                    nextLayerActions.push({drawHealthBar: {x: x, y: y, percent: player.health}})
                     nextLayerActions.push({drawPlayerName: {x: x, y: y, name: player.name}})
                 }
             }
@@ -130,24 +134,33 @@ class Game {
         nextLayerActions.forEach(action => {
             this[Object.keys(action)[0]](...Object.values(Object.values(action)[0]));
         })
+    };
+    drawHealthBar(x, y, percent) {
+        console.log('drawHealthBar', x, y, percent)
+        const halfTileSide = this.tileSide / 2;
+        this.ctx.fillStyle = `rgb(${255-Math.round(percent/100*255)}, ${0+Math.round(percent/100*255)}, 0)`;
+        this.ctx.fillRect(x*this.tileSide, y*this.tileSide - 2, this.tileSide * percent/100, 3);
     }
     drawPlayerName(x, y, name) {
-        console.log('drawPlayerName', x, y, name)
         const halfTileSide = this.tileSide / 2;
         this.ctx.fillStyle = 'yellow';
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(name, x*this.tileSide + halfTileSide, y*this.tileSide);
+        this.ctx.fillText(name, x*this.tileSide + halfTileSide, y*this.tileSide -4);
     }
     drawMessages(x, y, messages) {
-
         console.log('this.drawMessages', x, y, messages)
         const halfTileSide = this.tileSide / 2;
-        this.ctx.fillStyle = 'white';
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
         
         messages.reverse().forEach((message, index) => {
+            if (message.player === 'damage') {
+                this.ctx.fillStyle = 'red';
+                this.ctx.fillText(message.message, x*this.tileSide + halfTileSide, y*this.tileSide - halfTileSide - 12*index);
+                return;
+            }
+            this.ctx.fillStyle = 'white';
             this.ctx.fillText((message.player+': '+message.message), x*this.tileSide + halfTileSide, y*this.tileSide - halfTileSide - 12*index);
         });
     }
@@ -171,6 +184,17 @@ class Game {
     }
     movePlayer(xTranslation, yTranslation) {
         socket.emit('move player', { xTranslation: xTranslation, yTranslation: yTranslation })
+    }
+
+    initAttackOnClick() {
+        canvas.addEventListener('click', event => {
+            const x = Math.floor(event.clientX / this.tileSide);
+            const y = Math.floor(event.clientY / this.tileSide);
+            if(this.state[x][y].player) {
+                console.log('attack player', this.state[x][y].player)
+                socket.emit('attack player', this.state[x][y].player)
+            }
+        });
     }
     initArrows() {
         window.addEventListener('keydown', event => {

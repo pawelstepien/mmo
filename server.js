@@ -16,7 +16,11 @@ class Player {
         this.x = x;
         this.y = y;
         this.lastMoveTime = 0;
+        this.lastAttackTime = 0;
         this.name = accountData.name;
+        this.health = accountData.health
+        this.maxHealth = accountData.maxHealth;
+        this.damage = accountData.damage;
     }
     //x and y axises translation relative to current place
     move(map, xTranslation, yTranslation) {
@@ -42,6 +46,26 @@ class Player {
             console.log('rejected player movement', xSum, ySum, this.lastMoveTime - currentTime, this.lastMoveTime, currentTime)
         }
     }
+
+    receiveDamage(map, healthLost) {
+        if (this.health - healthLost <= 0) {
+            this.socket.disconnect();
+            return;
+        }
+        console.log(this.health, healthLost, 'xczxczx')
+        this.health -= healthLost;
+        map[this.x][this.y].addMessage('damage', healthLost.toString());
+    };
+
+    attack(map, target) {
+        console.log('attak',this.damage )
+        const currentTime = new Date();
+        if (this.lastMoveTime - currentTime < -500) {
+            this.lastMoveTime = currentTime;
+            target.receiveDamage(map, this.damage);
+        }
+    }
+
     sendState(state) {
         const stringifiedState = JSON.stringify(state);
         this.socket.emit('state update', stringifiedState);
@@ -66,17 +90,29 @@ class MapField {
 }
 
 class Map {
-    constructor(width, height) {
+    constructor(width, height, tileMap) {
         this.width = width;
         this.height = height;
         this.fields = [];
 
-        for (let x = 0; x < width; x++) {
-            this.fields.push([]);
-            for (let y = 0; y < height; y++) {
-                this.fields[x].push(new MapField('grass_' + (Math.floor(Math.random() * 7) + 1)));
+        // console.log('new map', tileMap)
+        if (tileMap) {
+            for (let x = 0; x < width; x++) {
+                this.fields.push([]);
+                for (let y = 0; y < height; y++) {
+                    console.log('aaaaaaaaaaaaaaaaaaaaa', tileMap[x][y])
+                    this.fields[x].push(new MapField(tileMap[x][y]));
+                }
+            }
+        } else {
+            for (let x = 0; x < width; x++) {
+                this.fields.push([]);
+                for (let y = 0; y < height; y++) {
+                    this.fields[x].push(new MapField('grass_' + (Math.floor(Math.random() * 7) + 1)));
+                }
             }
         }
+        
     }
     getData(xFrom, yFrom, xTo, yTo) {
         xFrom = xFrom || 0;
@@ -93,11 +129,18 @@ class Map {
                     typeof this.fields[x + xFrom] !== 'undefined' && typeof this.fields[x + xFrom][y + yFrom] !== 'undefined') {
 
                     const objectToPush = {};
-                    objectToPush.player = (this.fields[x + xFrom][y + yFrom].player === null ? null : { x: this.fields[x + xFrom][y + yFrom].player.x, y: this.fields[x + xFrom][y + yFrom].player.y, name: this.fields[x + xFrom][y + yFrom].player.name});
-                    objectToPush.isPassable = this.fields[x + xFrom][y + yFrom].isPassable || false;
-                    objectToPush.type = this.fields[x + xFrom][y + yFrom].type || null;
-                    objectToPush.messages = this.fields[x + xFrom][y + yFrom].messages || null;
+                    const field = this.fields[x + xFrom][y + yFrom];
+                    objectToPush.player = (field.player === null ? null : { 
+                        x: field.player.x, 
+                        y: field.player.y, 
+                        name: field.player.name, 
+                        health: Math.round((field.player.health/field.player.maxHealth)*100)
+                    });
+                    objectToPush.isPassable = field.isPassable || false;
+                    objectToPush.type = field.type || null;
+                    objectToPush.messages = field.messages || null;
                     data[x][y] = objectToPush;
+
 
                 }
             }
@@ -109,7 +152,8 @@ class Map {
 class Game {
     constructor() {
         this.players = {};
-        this.map = new Map(32, 32);
+        this.tileMap = JSON.parse(fs.readFileSync('tile_map.json'));
+        this.map = new Map(20, 20, this.tileMap);
         this.isServerOnline = false;
         this.accountsData = JSON.parse(fs.readFileSync('players.json'));
     }
@@ -161,6 +205,7 @@ class Game {
         io.on('connection', socket => {
 
             socket.on('login', credentials => {
+                console.log('login')
                 const accountData = this.getAccountData(credentials.login, credentials.password);
                 if (accountData) {
                     this.players[socket.id] = this.addPlayer(socket, accountData);
@@ -172,6 +217,7 @@ class Game {
 
             socket.on('disconnect', () => {
                 if (this.players[socket.id]) {
+                    console.log('disconnect', this.players[socket.id].name)
                     this.removePlayer(this.players[socket.id]);
                     delete this.players[socket.id];
                 }
@@ -179,6 +225,13 @@ class Game {
 
             socket.on('move player', data => {
                 this.players[socket.id].move(this.map, data.xTranslation, data.yTranslation);
+            });
+
+            socket.on('attack player', target => {
+                console.log('attack player')
+                if (this.map.fields[target.x][target.y].player) {
+                    this.players[socket.id].attack(this.map.fields, this.map.fields[target.x][target.y].player);
+                }
             });
 
             socket.on('message', message => {
