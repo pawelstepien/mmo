@@ -40,7 +40,7 @@ class Graphics {
             }
         });
 
-        this.allAssetsLoaded = false;
+        this.allImagesAreLoaded = false;
         image.src = source;
     }
 }
@@ -66,8 +66,15 @@ class Game {
             this.graphics.loadImage(`./assets/sprites/tiles/grass_${i}.png`, 'grass_' + i);
         }
     }
+    loadTileSet() {
+        fetch('tile_set.json')
+        .then(res => res.json())
+        .then(assets => {
+            assets.forEach(asset => this.graphics.loadImage(asset.source, asset.name));
+        })
+    }
     start() {
-        this.loadAssets();
+        this.loadTileSet();
         socket.on('login', accountData => {
             console.log('accountData', accountData)
             this.accountData = accountData;
@@ -136,7 +143,6 @@ class Game {
         })
     };
     drawHealthBar(x, y, percent) {
-        console.log('drawHealthBar', x, y, percent)
         const halfTileSide = this.tileSide / 2;
         this.ctx.fillStyle = `rgb(${255-Math.round(percent/100*255)}, ${0+Math.round(percent/100*255)}, 0)`;
         this.ctx.fillRect(x*this.tileSide, y*this.tileSide - 2, this.tileSide * percent/100, 3);
@@ -191,7 +197,6 @@ class Game {
             const x = Math.floor(event.clientX / this.tileSide);
             const y = Math.floor(event.clientY / this.tileSide);
             if(this.state[x][y].player) {
-                console.log('attack player', this.state[x][y].player)
                 socket.emit('attack player', this.state[x][y].player)
             }
         });

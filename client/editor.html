@@ -1,0 +1,40 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        #palette {
+            display: flex;
+        }
+        #palette img {
+            border: 1px solid white;
+        }
+        #palette img.active {
+            border: 1px solid red;
+            order: -1;
+        }
+    </style>
+</head>
+<body>
+    <div id="editor-wrapper" style="border: 3px solid black; display: flex; justify-content: center; align-items: center; max-width: 1440px; margin: 0 auto;">
+        <canvas id="editor-canvas" width="680" height="680" ></canvas>
+        <div class="interface-wrapper">
+            <form action="/editor" method="POST">
+                <label for="file-input">Load tile set</label>
+                <input type='file' id='tile-set-input'>
+                <label for="file-input">Load tile map</label>
+                <input type='file' id='tile-map-input'>
+                <a href="" download="new_tile_map.json" id="download-anchor">
+                    <button>Save tile map</button>
+                </a>
+            </form>
+            <div id="palette">
+
+            </div>
+        </div>
+    </div>
+    <script src="editor.js"></script>
+</body>
+</html>
