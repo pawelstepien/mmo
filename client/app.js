@@ -122,8 +122,12 @@ class Game {
                     } 
                     continue; 
                 }
-                if (this.state[x][y].type) {
-                    this.drawImage(this.state[x][y].type, x, y);
+                if (this.state[x][y].surface) {
+                    this.drawImage(this.state[x][y].surface, x, y);
+                }
+                if (this.state[x][y].structure) {
+                    console.log('drawing structure', this.state[x][y])
+                    this.drawImage(this.state[x][y].structure, x, y);
                 }
                 
                 const player = this.state[x][y].player;
@@ -194,9 +198,9 @@ class Game {
 
     initAttackOnClick() {
         canvas.addEventListener('click', event => {
-            const x = Math.floor(event.clientX / this.tileSide);
-            const y = Math.floor(event.clientY / this.tileSide);
-            if(this.state[x][y].player) {
+            const x = Math.floor(event.offsetX / this.tileSide);
+            const y = Math.floor(event.offsetY / this.tileSide);
+            if(this.state[x] && this.state[x][y] && this.state[x][y].player) {
                 socket.emit('attack player', this.state[x][y].player)
             }
         });

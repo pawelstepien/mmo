@@ -73,10 +73,11 @@ class Player {
 }
 
 class MapField {
-    constructor(type) {
-        this.type = type;
+    constructor(data) {
+        this.surface = data.surface || null;
+        this.structure = data.structure || null;
         this.player = null;
-        this.isPassable = true;
+        this.isPassable = this.structure ? false : true;
         this.messages = [];
     }
     addMessage(player, message) {
@@ -137,7 +138,8 @@ class Map {
                         health: Math.round((field.player.health/field.player.maxHealth)*100)
                     });
                     objectToPush.isPassable = field.isPassable || false;
-                    objectToPush.type = field.type || null;
+                    objectToPush.surface = field.surface || null;
+                    objectToPush.structure = field.structure || null;
                     objectToPush.messages = field.messages || null;
                     data[x][y] = objectToPush;
 

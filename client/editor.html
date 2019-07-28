@@ -3,32 +3,110 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
+    <title>Editor</title>
     <style>
+        #editor-wrapper {
+            border: 3px solid black; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            max-width: 1440px; 
+            margin: 0 auto;
+        }
+        @media screen and (max-width: 1199px) {
+            #editor-wrapper {
+                flex-direction: column;
+            }
+        }
         #palette {
             display: flex;
+            flex-wrap: wrap;    
         }
-        #palette img {
+        #palette figure {
             border: 1px solid white;
+            margin: 0;
+            padding: 3px;
         }
-        #palette img.active {
+        #palette figcaption {
+            display: none;
+        }
+        #palette figure.active {
             border: 1px solid red;
             order: -1;
+            text-align: center;
+        }
+        #palette figure.active figcaption {
+            display: block;
+        }
+        .hide {
+            margin-left: -92px;
+            position: relative;
+            z-index: -1;
+            outline: none;
+        }
+        .button {
+            display: inline-block;
+            background-color: #bfbfbf;
+            border: 2px solid #a6a6a6;
+            border-radius: 5px;
+            padding: 8px;
+            font-weight: 700;
+            color: #333333;
+            text-decoration: none;
+            cursor: pointer;
+            text-align: center;
+            width: 50%;
+            box-sizing: border-box;
+        }
+        .button.disabled {
+            color: #888888;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+        .interface-wrapper {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+        .text-input {
+            height: 30px;
+            border: 2px solid #acacac;
+            padding: 3px;
         }
     </style>
 </head>
 <body>
-    <div id="editor-wrapper" style="border: 3px solid black; display: flex; justify-content: center; align-items: center; max-width: 1440px; margin: 0 auto;">
+    <div id="editor-wrapper">
         <canvas id="editor-canvas" width="680" height="680" ></canvas>
         <div class="interface-wrapper">
-            <form action="/editor" method="POST">
-                <label for="file-input">Load tile set</label>
-                <input type='file' id='tile-set-input'>
-                <label for="file-input">Load tile map</label>
-                <input type='file' id='tile-map-input'>
-                <a href="" download="new_tile_map.json" id="download-anchor">
-                    <button>Save tile map</button>
-                </a>
+            <form action="/editor" method="POST" onsubmit="return false;"">
+                <!-- <div> -->
+                    <label for="tile-set-input" class="button">Load tile set</label>
+                    <input type="file" id="tile-set-input" class="hide">
+                    <label for="tile-map-input" class="button">Load tile map</label>
+                    <input type="file" id="tile-map-input" class="hide">
+                <!-- </div> -->
+                <!-- <div> -->
+                    <a href="" download="new_tile_set.json" id="tile-set-download-anchor" class="button">
+                        Save tile set
+                    </a>
+                    <a href="" download="new_tile_map.json" id="tile-map-download-anchor" class="button">
+                        Save tile map
+                    </a>
+                <!-- </div> -->
+                <!-- <div> -->
+                    <label class="button" for="add-tile-source-input" id="add-tile-source-button">Add tile</label>
+                    <input type="text" id="add-tile-source-input" class="text-input" placeholder="./assets/sprites/...">
+                    <select name="add-tile-layer-select" id="add-tile-layer-select">
+                        <option value="surface">
+                            Surface
+                        </option>
+                        <option value="structure">
+                            Structure
+                        </option>
+                    </select>
+                    <div class="button">Remove tile</div>
+                <!-- </div> -->
             </form>
             <div id="palette">
 
