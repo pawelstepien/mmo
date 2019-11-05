@@ -156,7 +156,10 @@ class Game {
         this.ctx.fillStyle = 'yellow';
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(name, x*this.tileSide + halfTileSide, y*this.tileSide -4);
+        this.ctx.strokeStyle = 'black';
+        this.ctx.lineWidth = 3.5;
+        this.ctx.strokeText(name, x*this.tileSide + halfTileSide, y*this.tileSide -6);
+        this.ctx.fillText(name, x*this.tileSide + halfTileSide, y*this.tileSide -6);
     }
     drawMessages(x, y, messages) {
         console.log('this.drawMessages', x, y, messages)
@@ -178,11 +181,6 @@ class Game {
         const halfTileSide = this.tileSide / 2;
         this.ctx.drawImage(this.graphics.assets.images.mage, x*this.tileSide, y*this.tileSide);
     }
-    drawClientPlayer() {
-        const halfTileSide = this.tileSide / 2;
-        this.ctx.drawImage(this.graphics.assets.images.mage, this.canvasWidth/2 - halfTileSide, this.canvasHeight/2 - halfTileSide);
-        
-    }
     colorField(x, y, color) {
         const previousFillStyle = this.ctx.fillStyle;
         this.ctx.fillStyle = color;
@@ -193,15 +191,19 @@ class Game {
         this.ctx.drawImage(this.graphics.assets.images[name], x*this.tileSide, y*this.tileSide);
     }
     movePlayer(xTranslation, yTranslation) {
-        socket.emit('move player', { xTranslation: xTranslation, yTranslation: yTranslation })
+        socket.emit('move player', { xTranslation: xTranslation, yTranslation: yTranslation });
+    }
+    attackPlayer(player) {
+        socket.emit('attack player', player);
     }
 
     initAttackOnClick() {
         canvas.addEventListener('click', event => {
             const x = Math.floor(event.offsetX / this.tileSide);
             const y = Math.floor(event.offsetY / this.tileSide);
+
             if(this.state[x] && this.state[x][y] && this.state[x][y].player) {
-                socket.emit('attack player', this.state[x][y].player)
+                this.attackPlayer(this.state[x][y].player);
             }
         });
     }

@@ -52,7 +52,7 @@ class Player {
             this.socket.disconnect();
             return;
         }
-        console.log(this.health, healthLost, 'xczxczx')
+        console.log(this.name, 'received damage', healthLost)
         this.health -= healthLost;
         map[this.x][this.y].addMessage('damage', healthLost.toString());
     };
@@ -101,7 +101,6 @@ class Map {
             for (let x = 0; x < width; x++) {
                 this.fields.push([]);
                 for (let y = 0; y < height; y++) {
-                    console.log('aaaaaaaaaaaaaaaaaaaaa', tileMap[x][y])
                     this.fields[x].push(new MapField(tileMap[x][y]));
                 }
             }
@@ -226,22 +225,25 @@ class Game {
             });
 
             socket.on('move player', data => {
-                this.players[socket.id].move(this.map, data.xTranslation, data.yTranslation);
+                if (this.players[socket.id]) {
+                    this.players[socket.id].move(this.map, data.xTranslation, data.yTranslation);
+                }
             });
 
             socket.on('attack player', target => {
                 console.log('attack player')
-                if (this.map.fields[target.x][target.y].player) {
+                if (this.map.fields[target.x][target.y].player && this.players[socket.id]) {
                     this.players[socket.id].attack(this.map.fields, this.map.fields[target.x][target.y].player);
                 }
             });
 
             socket.on('message', message => {
-                const player = this.players[socket.id];
-                console.log('received message', socket.id, message)
-                this.map.fields[player.x][player.y].addMessage(player.name, message)
+                if (this.players[socket.id]) {
+                    console.log('received message', socket.id, message)
+                    const player = this.players[socket.id];
+                    this.map.fields[player.x][player.y].addMessage(player.name, message)
+                }
             });
-            
         });
     }
 };
